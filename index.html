@@ -134,44 +134,6 @@
       flex-wrap: wrap;
     }
 
-    #kernel-display {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 0.75rem;
-    }
-
-    .kernel-channel {
-      border: 1px solid rgba(50, 240, 255, 0.18);
-      border-radius: 6px;
-      padding: 0.5rem;
-      background: rgba(4, 7, 14, 0.92);
-    }
-
-    .kernel-channel h3 {
-      margin: 0 0 0.35rem 0;
-      font-size: 0.7rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    .kernel-values {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.25rem;
-    }
-
-    .kernel-values span {
-      display: block;
-      font-size: 0.72rem;
-      padding: 0.25rem;
-      text-align: center;
-      background: rgba(18, 25, 40, 0.75);
-      border-radius: 4px;
-      border: 1px solid rgba(50, 240, 255, 0.1);
-      color: var(--text);
-    }
-
     #viewport-panel {
       flex: 1 1 520px;
       min-width: min(100%, 520px);
@@ -282,7 +244,6 @@
         <button id="run-btn">Run</button>
         <button id="randomize-btn">Randomize Kernel</button>
       </div>
-      <div id="kernel-display"></div>
     </section>
     <section class="panel" id="viewport-panel">
       <div id="status-bar">
@@ -328,34 +289,6 @@
         kernel[i] = gaussianRandom();
       }
       return kernel;
-    }
-
-    function updateKernelDisplay(kernel) {
-      const display = document.getElementById("kernel-display");
-      display.innerHTML = "";
-      const channelNames = ["Output R", "Output G", "Output B"];
-      for (let out = 0; out < 3; out++) {
-        const channel = document.createElement("div");
-        channel.className = "kernel-channel";
-        const title = document.createElement("h3");
-        title.textContent = channelNames[out];
-        channel.appendChild(title);
-        const grid = document.createElement("div");
-        grid.className = "kernel-values";
-        for (let i = 0; i < 9; i++) {
-          const span = document.createElement("span");
-          const baseIndex = out * 27 + i * 3;
-          const weights = [
-            kernel[baseIndex + 0],
-            kernel[baseIndex + 1],
-            kernel[baseIndex + 2]
-          ];
-          span.textContent = weights.map(w => w.toFixed(2)).join(" ");
-          grid.appendChild(span);
-        }
-        channel.appendChild(grid);
-        display.appendChild(channel);
-      }
     }
 
     function createInitialGrid(size, mode) {
@@ -895,6 +828,10 @@ void main() {
           const params = readInputs();
           sim.setKernel(kernel);
           sim.start(params);
+          console.log("Kernel crystal configuration", {
+            params,
+            kernel: Array.from(kernel)
+          });
         } catch (error) {
           displayMessage(error.message, "error");
           console.error(error);
@@ -907,7 +844,7 @@ void main() {
 
       document.getElementById("randomize-btn").addEventListener("click", () => {
         kernel = createKernelArray();
-        updateKernelDisplay(kernel);
+        console.log("Kernel randomized", Array.from(kernel));
         runSimulation();
       });
 
@@ -921,11 +858,11 @@ void main() {
         document.getElementById("steps-per-frame-value").textContent = event.target.value;
       });
 
-      updateKernelDisplay(kernel);
+      console.log("Kernel initialised", Array.from(kernel));
       displayMessage("Random kernel initialised. Press Run to begin.");
       resizeCanvasToDisplaySize(canvas);
       sim.setKernel(kernel);
-      sim.start({
+      const defaultParams = {
         baseSize: 32,
         levels: 6,
         stepsStart: 20,
@@ -934,6 +871,11 @@ void main() {
         updateScale: 0.03,
         stepsPerFrame: 4,
         initMode: "seed"
+      };
+      sim.start(defaultParams);
+      console.log("Kernel crystal configuration", {
+        params: defaultParams,
+        kernel: Array.from(kernel)
       });
     }
 
