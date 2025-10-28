@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kernel Crystals</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #05070f;
+      --panel: #0d111c;
+      --accent: #32f0ff;
+      --accent-soft: rgba(50, 240, 255, 0.18);
+      --text: #edf6ff;
+      --muted: #7a8499;
+      --danger: #ff6b8a;
+      font-family: "IBM Plex Mono", "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, #101628 0%, #04050a 55%, #000 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin: 0;
+      color: var(--accent);
+      text-shadow: 0 0 10px rgba(50, 240, 255, 0.6);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      padding: 1.5rem clamp(1rem, 4vw, 2.5rem);
+      box-sizing: border-box;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(50, 240, 255, 0.18);
+      box-shadow: 0 12px 40px rgba(0, 12, 32, 0.45);
+      border-radius: 8px;
+      padding: 1.25rem;
+      box-sizing: border-box;
+    }
+
+    #controls {
+      max-width: 360px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    input[type="number"],
+    input[type="range"],
+    select {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      background: rgba(5, 8, 16, 0.85);
+      border: 1px solid rgba(50, 240, 255, 0.25);
+      color: var(--text);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input[type="range"] {
+      padding: 0.3rem 0;
+    }
+
+    input[type="number"]:focus,
+    input[type="range"]:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(50, 240, 255, 0.3);
+    }
+
+    .range-value {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    button {
+      cursor: pointer;
+      padding: 0.65rem 0.85rem;
+      border-radius: 6px;
+      border: 1px solid rgba(50, 240, 255, 0.35);
+      background: linear-gradient(120deg, rgba(50, 240, 255, 0.2), rgba(17, 22, 34, 0.8));
+      color: var(--text);
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+      box-shadow: 0 10px 30px rgba(50, 240, 255, 0.25);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    #kernel-display {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .kernel-channel {
+      border: 1px solid rgba(50, 240, 255, 0.18);
+      border-radius: 6px;
+      padding: 0.5rem;
+      background: rgba(4, 7, 14, 0.92);
+    }
+
+    .kernel-channel h3 {
+      margin: 0 0 0.35rem 0;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .kernel-values {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.25rem;
+    }
+
+    .kernel-values span {
+      display: block;
+      font-size: 0.72rem;
+      padding: 0.25rem;
+      text-align: center;
+      background: rgba(18, 25, 40, 0.75);
+      border-radius: 4px;
+      border: 1px solid rgba(50, 240, 255, 0.1);
+      color: var(--text);
+    }
+
+    #viewport-panel {
+      flex: 1 1 520px;
+      min-width: min(100%, 520px);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    #status-bar {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    #canvas-wrapper {
+      position: relative;
+      flex: 1;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(50, 240, 255, 0.25);
+      background: repeating-conic-gradient(from 45deg, rgba(10, 14, 24, 0.8) 0deg 10deg, rgba(6, 8, 16, 0.8) 10deg 20deg);
+      box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.65), 0 15px 45px rgba(0, 0, 0, 0.55);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #messages {
+      min-height: 1.2rem;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+    }
+
+    footer {
+      padding: 0.75rem clamp(1rem, 4vw, 2.5rem);
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    @media (max-width: 960px) {
+      main {
+        padding: 1.25rem;
+      }
+
+      #controls {
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel" id="controls">
+      <h1>Kernel Crystals</h1>
+      <div id="messages"></div>
+      <div class="control-group">
+        <label for="base-size">Base Grid Size</label>
+        <input type="number" id="base-size" min="8" max="256" step="2" value="32">
+      </div>
+      <div class="control-group">
+        <label for="levels">Levels</label>
+        <input type="number" id="levels" min="1" max="8" step="1" value="6">
+      </div>
+      <div class="control-group">
+        <label>Steps Per Level (Start → End)</label>
+        <div style="display: flex; gap: 0.75rem;">
+          <input type="number" id="steps-start" min="1" max="400" step="1" value="20">
+          <input type="number" id="steps-end" min="1" max="400" step="1" value="60">
+        </div>
+      </div>
+      <div class="control-group">
+        <label for="update-prob">Update Probability</label>
+        <input type="range" id="update-prob" min="0" max="1" step="0.01" value="0.5">
+        <div class="range-value"><span id="update-prob-value">0.50</span></div>
+      </div>
+      <div class="control-group">
+        <label for="update-scale">Update Scale</label>
+        <input type="range" id="update-scale" min="0.001" max="0.2" step="0.001" value="0.03">
+        <div class="range-value"><span id="update-scale-value">0.030</span></div>
+      </div>
+      <div class="control-group">
+        <label for="steps-per-frame">Steps / Frame</label>
+        <input type="range" id="steps-per-frame" min="1" max="12" step="1" value="4">
+        <div class="range-value"><span id="steps-per-frame-value">4</span></div>
+      </div>
+      <div class="control-group">
+        <label for="init-mode">Initial Pattern</label>
+        <select id="init-mode">
+          <option value="noise">White Noise</option>
+          <option value="seed">Central Seed</option>
+          <option value="radial">Radial Gradient</option>
+        </select>
+      </div>
+      <div class="button-row">
+        <button id="run-btn">Run</button>
+        <button id="randomize-btn">Randomize Kernel</button>
+      </div>
+      <div id="kernel-display"></div>
+    </section>
+    <section class="panel" id="viewport-panel">
+      <div id="status-bar">
+        <div id="status-left">Ready</div>
+        <div id="status-right">Level 0 · Step 0</div>
+      </div>
+      <div id="canvas-wrapper">
+        <canvas id="viewport" width="800" height="800"></canvas>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <span>interactive multi-scale convolution playground</span>
+    <span>built for the kernel crystal experiments</span>
+  </footer>
+  <script>
+    const gaussianRandom = (() => {
+      let spare = null;
+      return function() {
+        if (spare !== null) {
+          const val = spare;
+          spare = null;
+          return val;
+        }
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        const mag = Math.sqrt(-2.0 * Math.log(u));
+        const z0 = mag * Math.cos(2.0 * Math.PI * v);
+        const z1 = mag * Math.sin(2.0 * Math.PI * v);
+        spare = z1;
+        return z0;
+      };
+    })();
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function createKernelArray() {
+      const kernel = new Float32Array(9 * 9);
+      for (let i = 0; i < kernel.length; i++) {
+        kernel[i] = gaussianRandom();
+      }
+      return kernel;
+    }
+
+    function updateKernelDisplay(kernel) {
+      const display = document.getElementById("kernel-display");
+      display.innerHTML = "";
+      const channelNames = ["Output R", "Output G", "Output B"];
+      for (let out = 0; out < 3; out++) {
+        const channel = document.createElement("div");
+        channel.className = "kernel-channel";
+        const title = document.createElement("h3");
+        title.textContent = channelNames[out];
+        channel.appendChild(title);
+        const grid = document.createElement("div");
+        grid.className = "kernel-values";
+        for (let i = 0; i < 9; i++) {
+          const span = document.createElement("span");
+          const baseIndex = out * 27 + i * 3;
+          const weights = [
+            kernel[baseIndex + 0],
+            kernel[baseIndex + 1],
+            kernel[baseIndex + 2]
+          ];
+          span.textContent = weights.map(w => w.toFixed(2)).join(" ");
+          grid.appendChild(span);
+        }
+        channel.appendChild(grid);
+        display.appendChild(channel);
+      }
+    }
+
+    function createInitialGrid(size, mode) {
+      const data = new Float32Array(size * size * 4);
+      const cx = (size - 1) / 2;
+      const cy = (size - 1) / 2;
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const idx = (y * size + x) * 4;
+          let r, g, b;
+          if (mode === "noise") {
+            r = Math.random() * 2 - 1;
+            g = Math.random() * 2 - 1;
+            b = Math.random() * 2 - 1;
+          } else if (mode === "radial") {
+            const dx = (x - cx) / cx;
+            const dy = (y - cy) / cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const t = clamp(dist, 0, 1);
+            const val = 1 - 2 * t;
+            r = g = b = val;
+          } else {
+            r = g = b = 0;
+          }
+          data[idx] = r;
+          data[idx + 1] = g;
+          data[idx + 2] = b;
+          data[idx + 3] = 1;
+        }
+      }
+      if (mode === "seed") {
+        const center = ((Math.floor(size / 2) * size) + Math.floor(size / 2)) * 4;
+        data[center] = data[center + 1] = data[center + 2] = 1;
+      }
+      return data;
+    }
+
+    function resizeCanvasToDisplaySize(canvas, multiplier = window.devicePixelRatio || 1) {
+      const width = Math.floor(canvas.clientWidth * multiplier);
+      const height = Math.floor(canvas.clientHeight * multiplier);
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+        return true;
+      }
+      return false;
+    }
+
+    class KernelCrystalSim {
+      constructor(canvas, statusCallbacks) {
+        this.canvas = canvas;
+        this.gl = canvas.getContext("webgl2", { antialias: false, depth: false });
+        if (!this.gl) {
+          throw new Error("WebGL2 is not supported in this browser.");
+        }
+        if (!this.gl.getExtension("EXT_color_buffer_float")) {
+          throw new Error("Required float framebuffer support (EXT_color_buffer_float) is missing.");
+        }
+        this.status = statusCallbacks;
+        this.kernel = createKernelArray();
+        this._setupGLResources();
+        this.resetState();
+      }
+
+      resetState() {
+        this.params = null;
+        this.isRunning = false;
+        this.animationFrame = null;
+        this.currentLevel = 0;
+        this.totalStep = 0;
+        this.stepInLevel = 0;
+        this.levelSteps = [];
+        this.levelSizes = [];
+        this.currentWidth = 0;
+        this.currentHeight = 0;
+        this.randomSeedBase = Math.random() * 1000.0;
+        this.textures = null;
+      }
+
+      _setupGLResources() {
+        const gl = this.gl;
+        this.quad = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+          -1, -1,
+           1, -1,
+          -1,  1,
+           1,  1,
+        ]), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+        this.updateProgram = this._createProgram(this._vertexShaderSource(), this._updateFragmentSource());
+        this.displayProgram = this._createProgram(this._vertexShaderSource(), this._displayFragmentSource());
+        this.upsampleProgram = this._createProgram(this._vertexShaderSource(), this._upsampleFragmentSource());
+
+        this.updateLocations = {
+          position: this.gl.getAttribLocation(this.updateProgram, "aPosition"),
+          state: this.gl.getUniformLocation(this.updateProgram, "uState"),
+          resolution: this.gl.getUniformLocation(this.updateProgram, "uResolution"),
+          kernel: this.gl.getUniformLocation(this.updateProgram, "uKernel[0]"),
+          updateProb: this.gl.getUniformLocation(this.updateProgram, "uUpdateProbability"),
+          updateScale: this.gl.getUniformLocation(this.updateProgram, "uUpdateScale"),
+          stepSeed: this.gl.getUniformLocation(this.updateProgram, "uStepSeed"),
+        };
+        this.displayLocations = {
+          position: this.gl.getAttribLocation(this.displayProgram, "aPosition"),
+          texture: this.gl.getUniformLocation(this.displayProgram, "uTexture"),
+        };
+        this.upsampleLocations = {
+          position: this.gl.getAttribLocation(this.upsampleProgram, "aPosition"),
+          source: this.gl.getUniformLocation(this.upsampleProgram, "uSource"),
+          sourceResolution: this.gl.getUniformLocation(this.upsampleProgram, "uSourceResolution"),
+        };
+
+        gl.useProgram(this.updateProgram);
+        gl.uniform1i(this.updateLocations.state, 0);
+        gl.useProgram(this.displayProgram);
+        gl.uniform1i(this.displayLocations.texture, 0);
+        gl.useProgram(this.upsampleProgram);
+        gl.uniform1i(this.upsampleLocations.source, 0);
+        gl.useProgram(null);
+      }
+
+      _vertexShaderSource() {
+        return `#version 300 es
+layout(location = 0) in vec2 aPosition;
+out vec2 vUV;
+void main() {
+  vUV = aPosition * 0.5 + 0.5;
+  gl_Position = vec4(aPosition, 0.0, 1.0);
+}`;
+      }
+
+      _updateFragmentSource() {
+        return `#version 300 es
+precision highp float;
+precision highp int;
+
+in vec2 vUV;
+uniform sampler2D uState;
+      uniform mat3 uKernel[9];
+uniform ivec2 uResolution;
+uniform float uUpdateProbability;
+uniform float uUpdateScale;
+uniform float uStepSeed;
+out vec4 fragColor;
+
+float hash31(vec3 p) {
+  return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+}
+
+ivec2 wrapCoord(ivec2 coord) {
+  int x = coord.x % uResolution.x;
+  int y = coord.y % uResolution.y;
+  if (x < 0) x += uResolution.x;
+  if (y < 0) y += uResolution.y;
+  return ivec2(x, y);
+}
+
+void main() {
+  ivec2 coord = ivec2(gl_FragCoord.xy);
+  vec3 accum = vec3(0.0);
+  int kernelIndex = 0;
+      for (int dy = -1; dy <= 1; ++dy) {
+        for (int dx = -1; dx <= 1; ++dx) {
+          ivec2 offset = ivec2(dx, dy);
+          vec3 sampled = texelFetch(uState, wrapCoord(coord + offset), 0).xyz;
+          accum += uKernel[kernelIndex] * sampled;
+          kernelIndex++;
+        }
+      }
+  vec3 current = texelFetch(uState, wrapCoord(coord), 0).xyz;
+  float mask = hash31(vec3(vec2(coord), uStepSeed));
+  if (mask < uUpdateProbability) {
+    current += accum * uUpdateScale;
+  }
+  fragColor = vec4(clamp(current, -1.0, 1.0), 1.0);
+}`;
+      }
+
+      _displayFragmentSource() {
+        return `#version 300 es
+precision highp float;
+
+in vec2 vUV;
+uniform sampler2D uTexture;
+out vec4 fragColor;
+
+void main() {
+  vec3 value = texture(uTexture, vUV).xyz;
+  vec3 color = value * 0.5 + 0.5;
+  fragColor = vec4(color, 1.0);
+}`;
+      }
+
+      _upsampleFragmentSource() {
+        return `#version 300 es
+precision highp float;
+precision highp int;
+
+in vec2 vUV;
+uniform sampler2D uSource;
+uniform ivec2 uSourceResolution;
+out vec4 fragColor;
+
+void main() {
+  vec2 scaled = vUV * vec2(uSourceResolution);
+  ivec2 coord = ivec2(floor(scaled));
+  coord = clamp(coord, ivec2(0), uSourceResolution - ivec2(1));
+      vec4 sampled = texelFetch(uSource, coord, 0);
+      fragColor = sampled;
+}`;
+      }
+
+      _createShader(type, source) {
+        const shader = this.gl.createShader(type);
+        this.gl.shaderSource(shader, source);
+        this.gl.compileShader(shader);
+        if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+          const info = this.gl.getShaderInfoLog(shader);
+          this.gl.deleteShader(shader);
+          throw new Error("Shader compilation failed: " + info);
+        }
+        return shader;
+      }
+
+      _createProgram(vertexSource, fragmentSource) {
+        const vs = this._createShader(this.gl.VERTEX_SHADER, vertexSource);
+        const fs = this._createShader(this.gl.FRAGMENT_SHADER, fragmentSource);
+        const program = this.gl.createProgram();
+        this.gl.attachShader(program, vs);
+        this.gl.attachShader(program, fs);
+        this.gl.linkProgram(program);
+        if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
+          const info = this.gl.getProgramInfoLog(program);
+          this.gl.deleteProgram(program);
+          this.gl.deleteShader(vs);
+          this.gl.deleteShader(fs);
+          throw new Error("Program link failed: " + info);
+        }
+        this.gl.deleteShader(vs);
+        this.gl.deleteShader(fs);
+        return program;
+      }
+
+      _createTexture(width, height, data = null) {
+        const gl = this.gl;
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, data);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        return texture;
+      }
+
+      _createFramebuffer(texture) {
+        const gl = this.gl;
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+        if (status !== gl.FRAMEBUFFER_COMPLETE) {
+          throw new Error("Framebuffer incomplete: status " + status.toString(16));
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return framebuffer;
+      }
+
+      _createTexturePair(width, height, initialData = null) {
+        const readTexture = this._createTexture(width, height, initialData);
+        const writeTexture = this._createTexture(width, height, null);
+        return {
+          read: {
+            texture: readTexture,
+            framebuffer: this._createFramebuffer(readTexture),
+          },
+          write: {
+            texture: writeTexture,
+            framebuffer: this._createFramebuffer(writeTexture),
+          }
+        };
+      }
+
+      _deleteTexturePair(pair) {
+        if (!pair) return;
+        const gl = this.gl;
+        for (const key of ["read", "write"]) {
+          const entry = pair[key];
+          if (entry) {
+            if (entry.texture) gl.deleteTexture(entry.texture);
+            if (entry.framebuffer) gl.deleteFramebuffer(entry.framebuffer);
+          }
+        }
+      }
+
+      setKernel(kernelArray) {
+        this.kernel = kernelArray;
+        const gl = this.gl;
+        gl.useProgram(this.updateProgram);
+        gl.uniformMatrix3fv(this.updateLocations.kernel, false, this.kernel);
+        gl.useProgram(null);
+      }
+
+      start(params) {
+        this.stop();
+        this.params = params;
+        const maxLevel = params.levels;
+        this.levelSteps = [];
+        this.levelSizes = [];
+        for (let level = 0; level < maxLevel; level++) {
+          const t = maxLevel === 1 ? 0 : level / (maxLevel - 1);
+          const steps = Math.max(1, Math.round(params.stepsStart + (params.stepsEnd - params.stepsStart) * t));
+          this.levelSteps.push(steps);
+          const size = params.baseSize * Math.pow(2, level);
+          this.levelSizes.push(size);
+        }
+        this.currentLevel = 0;
+        this.stepInLevel = 0;
+        this.totalStep = 0;
+        this.randomSeedBase = Math.random() * 1000.0;
+        const initialData = createInitialGrid(this.levelSizes[0], params.initMode);
+        this.textures = this._createTexturePair(this.levelSizes[0], this.levelSizes[0], initialData);
+        this.currentWidth = this.levelSizes[0];
+        this.currentHeight = this.levelSizes[0];
+        this._updateUniformsForRun();
+        this.isRunning = true;
+        this._loop();
+      }
+
+      stop() {
+        this.isRunning = false;
+        if (this.animationFrame !== null) {
+          cancelAnimationFrame(this.animationFrame);
+          this.animationFrame = null;
+        }
+        if (this.textures) {
+          this._deleteTexturePair(this.textures);
+          this.textures = null;
+        }
+      }
+
+      _updateUniformsForRun() {
+        const gl = this.gl;
+        gl.useProgram(this.updateProgram);
+        gl.uniform1f(this.updateLocations.updateProb, this.params.updateProbability);
+        gl.uniform1f(this.updateLocations.updateScale, this.params.updateScale);
+        gl.uniformMatrix3fv(this.updateLocations.kernel, false, this.kernel);
+        gl.useProgram(null);
+      }
+
+      _loop() {
+        if (!this.isRunning) {
+          this._updateStatus();
+          return;
+        }
+        this.animationFrame = requestAnimationFrame(() => this._loop());
+        const resized = resizeCanvasToDisplaySize(this.canvas);
+        if (resized) {
+          this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+        }
+        const stepsThisFrame = this.params.stepsPerFrame;
+        for (let i = 0; i < stepsThisFrame && this.isRunning; i++) {
+          this._stepSimulation();
+        }
+        this._render();
+        this._updateStatus();
+      }
+
+      _stepSimulation() {
+        const gl = this.gl;
+        gl.useProgram(this.updateProgram);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
+        gl.enableVertexAttribArray(this.updateLocations.position);
+        gl.vertexAttribPointer(this.updateLocations.position, 2, gl.FLOAT, false, 0, 0);
+
+        gl.uniform2i(this.updateLocations.resolution, this.currentWidth, this.currentHeight);
+        gl.uniform1f(this.updateLocations.stepSeed, this.randomSeedBase + this.totalStep);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.textures.read.texture);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.textures.write.framebuffer);
+        gl.viewport(0, 0, this.currentWidth, this.currentHeight);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        this._swapTextures();
+
+        this.stepInLevel += 1;
+        this.totalStep += 1;
+
+        if (this.stepInLevel >= this.levelSteps[this.currentLevel]) {
+          if (this.currentLevel < this.params.levels - 1) {
+            this._advanceLevel();
+          } else {
+            this.isRunning = false;
+            if (this.status && this.status.onComplete) {
+              this.status.onComplete();
+            }
+          }
+        }
+      }
+
+      _advanceLevel() {
+        const gl = this.gl;
+        const previousPair = this.textures;
+        const prevSize = this.levelSizes[this.currentLevel];
+        this.currentLevel += 1;
+        this.stepInLevel = 0;
+        this.currentWidth = this.levelSizes[this.currentLevel];
+        this.currentHeight = this.levelSizes[this.currentLevel];
+        const newPair = this._createTexturePair(this.currentWidth, this.currentHeight, null);
+
+        gl.useProgram(this.upsampleProgram);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
+        gl.enableVertexAttribArray(this.upsampleLocations.position);
+        gl.vertexAttribPointer(this.upsampleLocations.position, 2, gl.FLOAT, false, 0, 0);
+        gl.uniform2i(this.upsampleLocations.sourceResolution, prevSize, prevSize);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, previousPair.read.texture);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, newPair.write.framebuffer);
+        gl.viewport(0, 0, this.currentWidth, this.currentHeight);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        this._swapPair(newPair);
+        this.textures = newPair;
+        this._deleteTexturePair(previousPair);
+      }
+
+      _swapTextures() {
+        const temp = this.textures.read;
+        this.textures.read = this.textures.write;
+        this.textures.write = temp;
+      }
+
+      _swapPair(pair) {
+        const temp = pair.read;
+        pair.read = pair.write;
+        pair.write = temp;
+      }
+
+      _render() {
+        const gl = this.gl;
+        gl.useProgram(this.displayProgram);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
+        gl.enableVertexAttribArray(this.displayLocations.position);
+        gl.vertexAttribPointer(this.displayLocations.position, 2, gl.FLOAT, false, 0, 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.textures.read.texture);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      }
+
+      _updateStatus() {
+        if (!this.status) return;
+        if (this.status.onStatus) {
+          const totalLevels = this.params ? this.params.levels : 0;
+          const level = this.params ? this.currentLevel + 1 : 0;
+          const step = this.params ? this.stepInLevel : 0;
+          const stepMax = this.params ? this.levelSteps[this.currentLevel] : 0;
+          this.status.onStatus({
+            running: this.isRunning,
+            level,
+            totalLevels,
+            step,
+            stepMax,
+            totalStep: this.totalStep
+          });
+        }
+      }
+    }
+
+    function main() {
+      const canvas = document.getElementById("viewport");
+      const statusLeft = document.getElementById("status-left");
+      const statusRight = document.getElementById("status-right");
+      const messageBox = document.getElementById("messages");
+      let kernel = createKernelArray();
+      const sim = new KernelCrystalSim(canvas, {
+        onStatus(info) {
+          if (!info.totalLevels) {
+            statusLeft.textContent = "Ready";
+            statusRight.textContent = "Level 0 · Step 0";
+            return;
+          }
+          statusLeft.textContent = info.running ? "Running" : "Complete";
+          statusRight.textContent = `Level ${info.level}/${info.totalLevels} · Step ${info.step}/${info.stepMax}`;
+        },
+        onComplete() {
+          statusLeft.textContent = "Complete";
+        }
+      });
+
+      function displayMessage(text, tone = "info") {
+        messageBox.textContent = text;
+        messageBox.style.color = tone === "error" ? "var(--danger)" : "var(--accent)";
+      }
+
+      function readInputs() {
+        const baseSize = clamp(parseInt(document.getElementById("base-size").value, 10) || 32, 8, 256);
+        const levels = clamp(parseInt(document.getElementById("levels").value, 10) || 6, 1, 8);
+        const stepsStart = clamp(parseInt(document.getElementById("steps-start").value, 10) || 20, 1, 400);
+        const stepsEnd = clamp(parseInt(document.getElementById("steps-end").value, 10) || 60, 1, 400);
+        const updateProbability = parseFloat(document.getElementById("update-prob").value);
+        const updateScale = parseFloat(document.getElementById("update-scale").value);
+        const stepsPerFrame = clamp(parseInt(document.getElementById("steps-per-frame").value, 10) || 4, 1, 12);
+        const initMode = document.getElementById("init-mode").value;
+        const finalSize = baseSize * Math.pow(2, levels - 1);
+        if (finalSize > 1024) {
+          displayMessage(`Final grid (${finalSize}²) is large; rendering may be slow.`, "info");
+        } else {
+          displayMessage("");
+        }
+        return {
+          baseSize,
+          levels,
+          stepsStart,
+          stepsEnd,
+          updateProbability,
+          updateScale,
+          stepsPerFrame,
+          initMode
+        };
+      }
+
+      function runSimulation() {
+        try {
+          const params = readInputs();
+          sim.setKernel(kernel);
+          sim.start(params);
+        } catch (error) {
+          displayMessage(error.message, "error");
+          console.error(error);
+        }
+      }
+
+      document.getElementById("run-btn").addEventListener("click", () => {
+        runSimulation();
+      });
+
+      document.getElementById("randomize-btn").addEventListener("click", () => {
+        kernel = createKernelArray();
+        updateKernelDisplay(kernel);
+        runSimulation();
+      });
+
+      document.getElementById("update-prob").addEventListener("input", (event) => {
+        document.getElementById("update-prob-value").textContent = Number(event.target.value).toFixed(2);
+      });
+      document.getElementById("update-scale").addEventListener("input", (event) => {
+        document.getElementById("update-scale-value").textContent = Number(event.target.value).toFixed(3);
+      });
+      document.getElementById("steps-per-frame").addEventListener("input", (event) => {
+        document.getElementById("steps-per-frame-value").textContent = event.target.value;
+      });
+
+      updateKernelDisplay(kernel);
+      displayMessage("Random kernel initialised. Press Run to begin.");
+      resizeCanvasToDisplaySize(canvas);
+      sim.setKernel(kernel);
+      sim.start({
+        baseSize: 32,
+        levels: 6,
+        stepsStart: 20,
+        stepsEnd: 60,
+        updateProbability: 0.5,
+        updateScale: 0.03,
+        stepsPerFrame: 4,
+        initMode: "seed"
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      try {
+        main();
+      } catch (error) {
+        const messageBox = document.getElementById("messages");
+        messageBox.textContent = error.message;
+        messageBox.style.color = "var(--danger)";
+        console.error(error);
+      }
+    });
+  </script>
+</body>
+</html>
